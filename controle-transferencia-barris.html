@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Alfa — Transferência de Barris</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qr-scanner/1.4.2/qr-scanner.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root{
+    --bg:#161009;
+    --surface:#211809;
+    --surface-2:#2b1f0f;
+    --amber:#e3a83b;
+    --amber-dark:#b9862a;
+    --text:#f5ead9;
+    --muted:#af9c81;
+    --danger:#c0392b;
+    --success:#5c9a52;
+    --border:#3a2c17;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    min-height:100vh;
+  }
+  #app{max-width:520px;margin:0 auto;padding:16px 16px 40px;}
+  header{
+    display:flex;align-items:baseline;justify-content:space-between;
+    padding:14px 4px 18px;border-bottom:1px solid var(--border);margin-bottom:18px;
+  }
+  header .brand{font-size:1.4rem;font-weight:800;letter-spacing:0.5px;color:var(--amber);}
+  header .sub{font-size:0.78rem;color:var(--muted);}
+  .view{display:none;}
+  .view.active{display:block;animation:fade .25s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+
+  h2{font-size:1.15rem;margin:0 0 16px;color:var(--text);}
+  h3{font-size:0.95rem;margin:18px 0 8px;color:var(--muted);font-weight:600;}
+
+  .big-btn{
+    display:block;width:100%;padding:18px 16px;margin-bottom:12px;
+    background:var(--amber);color:#1a1206;border:none;border-radius:var(--radius);
+    font-size:1.05rem;font-weight:700;cursor:pointer;text-align:center;
+  }
+  .big-btn:active{background:var(--amber-dark);}
+  .big-btn.secondary{background:var(--surface-2);color:var(--amber);border:1px solid var(--amber-dark);}
+  .link-btn{
+    display:block;width:100%;text-align:center;background:none;border:none;
+    color:var(--muted);padding:10px;font-size:0.9rem;cursor:pointer;margin-top:4px;
+  }
+
+  .employee-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+  .emp-btn{
+    padding:20px 8px;background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--radius);color:var(--text);font-size:1.05rem;font-weight:600;cursor:pointer;
+  }
+  .emp-btn:active{border-color:var(--amber);}
+  #emp-outro-input{
+    width:100%;padding:14px;margin-bottom:14px;border-radius:var(--radius);
+    border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:1rem;
+  }
+
+  .scan-header{display:flex;justify-content:space-between;font-size:0.82rem;color:var(--muted);margin-bottom:10px;}
+  .camera-wrap{
+    position:relative;width:100%;aspect-ratio:1/1;background:#000;border-radius:var(--radius);
+    overflow:hidden;border:1px solid var(--border);margin-bottom:10px;
+  }
+  #video{width:100%;height:100%;object-fit:cover;display:block;}
+  #scan-flash{
+    position:absolute;inset:0;background:var(--success);opacity:0;pointer-events:none;transition:opacity .15s;
+  }
+  #scan-flash.on{opacity:.35;}
+  #scan-toast{
+    position:absolute;left:8px;right:8px;bottom:8px;background:rgba(20,15,8,.88);
+    color:var(--text);padding:10px 12px;border-radius:10px;font-size:0.92rem;font-weight:600;
+    opacity:0;transform:translateY(6px);transition:all .2s;pointer-events:none;text-align:center;
+  }
+  #scan-toast.show{opacity:1;transform:none;}
+  #scan-toast.error{background:rgba(120,30,20,.9);}
+
+  .manual-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;}
+  .manual-btn{
+    padding:10px 4px;font-size:0.78rem;line-height:1.3;background:var(--surface);
+    border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer;
+  }
+  .manual-btn:active{border-color:var(--amber);}
+
+  .tally-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:14px;}
+  .tally-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);}
+  .tally-row:last-child{border-bottom:none;}
+  .tally-name{flex:1;font-size:0.92rem;}
+  .tally-count{font-size:0.9rem;color:var(--amber);font-weight:700;min-width:52px;text-align:right;}
+  .mini-btn{
+    width:30px;height:30px;border-radius:8px;border:1px solid var(--border);
+    background:var(--surface-2);color:var(--text);font-size:1.1rem;cursor:pointer;line-height:1;
+  }
+  .empty{color:var(--muted);font-size:0.9rem;text-align:center;padding:10px 0;}
+  #totals-bar{text-align:center;padding-top:10px;font-size:1rem;color:var(--text);}
+
+  #summary-text{
+    white-space:pre-wrap;background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--radius);padding:16px;font-size:0.92rem;line-height:1.55;margin-bottom:16px;
+    font-family:inherit;
+  }
+
+  .style-group{padding:8px 0;border-bottom:1px solid var(--border);}
+  .style-group:last-child{border-bottom:none;}
+  .style-group-header{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px;}
+  .style-group-name{font-weight:700;font-size:0.95rem;}
+  .lote-mini-input{
+    width:96px;padding:6px 8px;border-radius:8px;border:1px solid var(--border);
+    background:var(--surface-2);color:var(--text);font-size:0.8rem;text-align:center;
+  }
+  .style-group .tally-row{border-bottom:none;padding:4px 0 4px 6px;}
+
+  .hint-text{color:var(--muted);font-size:0.85rem;margin-top:-10px;line-height:1.4;}
+
+  .labels-checklist{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;}
+  .label-check-item{
+    display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 4px;
+    background:var(--surface);border:1px solid var(--border);border-radius:10px;
+    font-size:0.74rem;text-align:center;line-height:1.25;
+  }
+  .label-check-item input{width:18px;height:18px;}
+  .label-check-item:has(input:checked){border-color:var(--amber);background:var(--surface-2);}
+
+  #labels-sheet{display:flex;flex-direction:column;gap:16px;margin-top:16px;}
+  .generated-label-card{
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+    padding:12px;text-align:center;
+  }
+  .generated-label-img{
+    width:100%;max-width:378px;border-radius:6px;margin-bottom:8px;border:1px solid var(--border);
+  }
+  .generated-label-caption{font-size:0.9rem;color:var(--amber);font-weight:700;margin-bottom:8px;}
+  .download-btn{display:block;text-decoration:none;}
+  .copy-hint{font-size:0.75rem;color:var(--muted);margin-top:6px;}
+
+  /* Etiqueta completa 100mm x 70mm, renderizada fora da tela e capturada via html2canvas */
+  #label-offscreen{position:absolute;left:-9999px;top:0;}
+  .label-canvas{
+    width:377.95px;height:264.57px;background:#fff;color:#000;
+    font-family:Arial,'Arial Narrow',sans-serif;padding:17px 20px;box-sizing:border-box;overflow:hidden;
+  }
+  .lc-header{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+  .lc-title{font-size:15px;font-weight:800;line-height:1.08;flex:1;}
+  .lc-qr-wrap{display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;margin:1px 3px 0 0;}
+  .lc-qr{width:55px;height:55px;}
+  .lc-qr canvas,.lc-qr img{width:100%!important;height:100%!important;}
+  .lc-datecode{font-size:8px;font-weight:700;color:#000;letter-spacing:0.5px;}
+  .lc-ingred{font-size:10px;line-height:1.25;margin-top:4px;}
+  .lc-brand{font-size:18px;font-weight:800;margin:4px 0 3px;}
+  .lc-validade{font-size:10px;font-weight:700;text-align:right;margin-bottom:4px;}
+  .lc-gluten{background:#000;color:#fff;font-size:9.5px;font-weight:700;text-align:center;padding:2px 0;margin-bottom:4px;}
+  .lc-produced{font-size:9px;font-weight:700;text-decoration:underline;text-align:center;margin-bottom:3px;}
+  .lc-addr,.lc-cnpj,.lc-mapa,.lc-quimico{font-size:8.5px;text-align:center;line-height:1.3;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <span class="brand">ALFA</span>
+    <span class="sub">Transferência de Barris</span>
+  </header>
+
+  <section id="view-home" class="view active">
+    <button class="big-btn" id="go-scan">📦 Transferência de Barris</button>
+    <button class="big-btn secondary" id="go-labels">🏷️ Gerar Etiquetas</button>
+  </section>
+
+  <section id="view-employee" class="view">
+    <h2>Quem está fazendo a transferência?</h2>
+    <div class="employee-grid">
+      <button class="emp-btn" data-name="João">João</button>
+      <button class="emp-btn" data-name="Vanderson">Vanderson</button>
+      <button class="emp-btn" data-name="Brasileiro">Brasileiro</button>
+      <button class="emp-btn" data-name="Elmir">Elmir</button>
+      <button class="emp-btn" data-name="Marcos">Marcos</button>
+      <button class="emp-btn" id="emp-outro">Outro</button>
+    </div>
+    <input type="text" id="emp-outro-input" placeholder="Digite o nome e aperte Enter" style="display:none">
+    <button class="link-btn" id="emp-back">‹ Voltar</button>
+  </section>
+
+  <section id="view-scan" class="view">
+    <div class="scan-header">
+      <span id="scan-employee-label"></span>
+      <span id="scan-datetime"></span>
+    </div>
+    <div class="camera-wrap">
+      <video id="video" playsinline muted></video>
+      <div id="scan-flash"></div>
+      <div id="scan-toast"></div>
+    </div>
+    <button class="link-btn" id="manual-toggle">Adicionar manualmente</button>
+    <div class="manual-grid" id="manual-grid" style="display:none"></div>
+    <div class="tally-wrap">
+      <h3 style="margin-top:0">Escaneados nesta transferência</h3>
+      <div id="tally-list"></div>
+      <div id="totals-bar"></div>
+    </div>
+    <button class="big-btn" id="btn-finish">Finalizar e Gerar Resumo</button>
+    <button class="link-btn" id="scan-back">‹ Cancelar</button>
+  </section>
+
+  <section id="view-summary" class="view">
+    <h2>Resumo da Transferência</h2>
+    <div id="summary-text"></div>
+    <button class="big-btn secondary" id="btn-copy">Copiar</button>
+    <button class="big-btn" id="btn-whatsapp">Enviar por WhatsApp</button>
+    <button class="link-btn" id="btn-new">Novo registro</button>
+  </section>
+
+  <section id="view-labels" class="view">
+    <h2>Gerar Etiquetas para Impressão</h2>
+    <p class="hint-text">Marque os estilos/volumes que você precisa agora. Cada etiqueta sai pronta em JPEG, no tamanho 100mm x 70mm, com QR code + dados da Alfa — é só baixar (ou copiar a imagem) e colar no BYLabel.</p>
+    <div id="labels-config" class="labels-checklist"></div>
+    <p class="hint-text">*A lista de ingredientes vem padrão como "Água, Malte, Lúpulo e levedura" — confira antes de imprimir estilos com fruta, vinho ou outro insumo adicional.</p>
+    <button class="big-btn" id="labels-generate">Gerar Etiquetas Selecionadas</button>
+    <div id="labels-sheet"></div>
+    <div id="label-offscreen"></div>
+    <button class="link-btn" id="labels-back">‹ Voltar</button>
+  </section>
+</div>
+
+<script>
+const STYLES = [
+  {code:'OKTOBER', name:'Oktober'},
+  {code:'SOFT-PILSEN', name:'Soft Pilsen'},
+  {code:'CAP-LAGER', name:'Capunga Lager'},
+  {code:'CAP-PMALTE', name:'Capunga Puro Malte'},
+  {code:'CUMADE', name:'IPA Cumade'},
+  {code:'BALA-DIPA', name:'Bala de Prata DIPA'},
+  {code:'BABYLON-IPA', name:'IPA Babylon'},
+  {code:'GERMAN-LAGER', name:'German Lager'},
+  {code:'NECTAR-ROXO', name:'Néctar Roxo'},
+  {code:'SPRING', name:'Spring'},
+  {code:'BOSSA', name:'Bossa'},
+  {code:'EKAUT-PILSEN', name:'Ekäut Pilsen'}
+];
+const VOLUMES = [20, 30, 50];
+
+function qrText(code, vol){ return 'ALFA:' + code + ':' + vol + 'L'; }
+function styleName(code){ const s = STYLES.find(function(s){return s.code===code;}); return s ? s.name : code; }
+
+let employeeName = '';
+let scans = [];
+let lotesByStyle = {};
+let lastScanKey = null, lastScanTime = 0;
+let qrScanner = null;
+let sessionStart = null;
+
+function showView(id){
+  document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('active'); });
+  document.getElementById(id).classList.add('active');
+}
+
+function updateDatetime(){
+  const now = new Date();
+  document.getElementById('scan-datetime').textContent =
+    now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+}
+
+function startTransfer(name){
+  employeeName = name;
+  scans = [];
+  lotesByStyle = {};
+  sessionStart = new Date();
+  document.getElementById('scan-employee-label').textContent = 'Funcionário: ' + name;
+  updateDatetime();
+  renderTally();
+  showView('view-scan');
+  startCamera();
+}
+
+function startCamera(){
+  const video = document.getElementById('video');
+  if(qrScanner){ qrScanner.destroy(); qrScanner = null; }
+  try{ QrScanner.WORKER_PATH = 'https://cdnjs.cloudflare.com/ajax/libs/qr-scanner/1.4.2/qr-scanner-worker.min.js'; }catch(e){}
+  qrScanner = new QrScanner(video, handleDecode, {
+    highlightScanRegion: true,
+    highlightCodeOutline: true,
+    maxScansPerSecond: 5,
+    preferredCamera: 'environment'
+  });
+  qrScanner.start().catch(function(){
+    showToast('Câmera indisponível — use "Adicionar manualmente"', true);
+    document.getElementById('manual-grid').style.display = 'grid';
+    document.getElementById('manual-toggle').textContent = 'Ocultar lista manual';
+  });
+}
+
+function stopCamera(){
+  if(qrScanner){ qrScanner.stop(); }
+}
+
+function handleDecode(result){
+  const text = (typeof result === 'string') ? result : result.data;
+  if(!text) return;
+  const m = /^ALFA:([A-Z0-9\-]+):(\d+)L$/.exec(text.trim());
+  if(!m){ return; }
+  const code = m[1], vol = parseInt(m[2],10);
+  const key = code + '-' + vol;
+  const now = Date.now();
+  if(key === lastScanKey && (now - lastScanTime) < 1500){ return; }
+  lastScanKey = key; lastScanTime = now;
+  addScan(code, vol);
+}
+
+function addScan(code, vol){
+  vol = parseInt(vol,10);
+  scans.push({code:code, vol:vol, ts:new Date()});
+  renderTally();
+  flashFeedback(styleName(code) + ' ' + vol + 'L');
+  beep();
+  if(navigator.vibrate) navigator.vibrate(80);
+}
+
+function flashFeedback(label){
+  const el = document.getElementById('scan-toast');
+  el.textContent = '✓ ' + label;
+  el.classList.remove('error');
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(function(){ el.classList.remove('show'); }, 1200);
+  const flash = document.getElementById('scan-flash');
+  flash.classList.add('on');
+  setTimeout(function(){ flash.classList.remove('on'); }, 200);
+}
+
+function showToast(msg, isError){
+  const el = document.getElementById('scan-toast');
+  el.textContent = msg;
+  el.classList.toggle('error', !!isError);
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(function(){ el.classList.remove('show'); }, 2500);
+}
+
+function beep(){
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value = 880; g.gain.value = 0.08;
+    o.start(); o.stop(ctx.currentTime + 0.1);
+  }catch(e){}
+}
+
+function groupedByStyle(){
+  const map = {};
+  scans.forEach(function(s){
+    if(!map[s.code]) map[s.code] = {code:s.code, volumes:{}};
+    map[s.code].volumes[s.vol] = (map[s.code].volumes[s.vol] || 0) + 1;
+  });
+  return Object.keys(map).sort(function(a,b){
+    return styleName(a).localeCompare(styleName(b));
+  }).map(function(code){ return map[code]; });
+}
+
+function setLote(code, value){ lotesByStyle[code] = value; }
+
+function renderTally(){
+  const list = document.getElementById('tally-list');
+  const groups = groupedByStyle();
+  if(groups.length === 0){
+    list.innerHTML = '<p class="empty">Nenhum barril escaneado ainda</p>';
+  } else {
+    list.innerHTML = groups.map(function(g){
+      const volsHtml = Object.keys(g.volumes).sort(function(a,b){ return a - b; }).map(function(v){
+        return '<div class="tally-row">' +
+          '<span class="tally-name">' + v + 'L</span>' +
+          '<span class="tally-count">' + g.volumes[v] + ' un.</span>' +
+          '<button class="mini-btn" onclick="decScan(\'' + g.code + '\',' + v + ')">−</button>' +
+          '<button class="mini-btn" onclick="incScan(\'' + g.code + '\',' + v + ')">+</button>' +
+          '</div>';
+      }).join('');
+      const loteVal = lotesByStyle[g.code] || '';
+      return '<div class="style-group">' +
+        '<div class="style-group-header">' +
+          '<span class="style-group-name">' + styleName(g.code) + '</span>' +
+          '<input type="text" class="lote-mini-input" placeholder="Lote" value="' + loteVal + '" oninput="setLote(\'' + g.code + '\', this.value)">' +
+        '</div>' +
+        volsHtml +
+        '</div>';
+    }).join('');
+  }
+  const totalBarris = scans.length;
+  const totalLitros = scans.reduce(function(sum,s){ return sum + s.vol; }, 0);
+  document.getElementById('totals-bar').innerHTML =
+    '<strong>' + totalBarris + '</strong> barris &nbsp;•&nbsp; <strong>' + totalLitros + '</strong> litros';
+}
+
+function incScan(code, vol){ addScan(code, vol); }
+function decScan(code, vol){
+  vol = parseInt(vol,10);
+  const idx = scans.map(function(s){ return s.code+'-'+s.vol; }).lastIndexOf(code+'-'+vol);
+  if(idx > -1) scans.splice(idx,1);
+  renderTally();
+}
+
+function buildManualGrid(){
+  const grid = document.getElementById('manual-grid');
+  let html = '';
+  STYLES.forEach(function(s){
+    VOLUMES.forEach(function(v){
+      html += '<button class="manual-btn" onclick="addScan(\'' + s.code + '\',' + v + ')">' + s.name + '<br>' + v + 'L</button>';
+    });
+  });
+  grid.innerHTML = html;
+}
+
+// wiring
+document.getElementById('go-scan').onclick = function(){ showView('view-employee'); };
+document.getElementById('go-labels').onclick = function(){ buildLabelsConfig(); showView('view-labels'); };
+document.getElementById('emp-back').onclick = function(){ showView('view-home'); };
+document.getElementById('labels-back').onclick = function(){ showView('view-home'); };
+
+document.querySelectorAll('.emp-btn[data-name]').forEach(function(btn){
+  btn.onclick = function(){ startTransfer(btn.dataset.name); };
+});
+document.getElementById('emp-outro').onclick = function(){
+  const input = document.getElementById('emp-outro-input');
+  input.style.display = 'block';
+  input.focus();
+  input.onkeydown = function(e){
+    if(e.key === 'Enter' && input.value.trim()){ startTransfer(input.value.trim()); }
+  };
+};
+
+document.getElementById('manual-toggle').onclick = function(){
+  const grid = document.getElementById('manual-grid');
+  const showing = grid.style.display !== 'none';
+  grid.style.display = showing ? 'none' : 'grid';
+  this.textContent = showing ? 'Adicionar manualmente' : 'Ocultar lista manual';
+};
+
+document.getElementById('scan-back').onclick = function(){
+  if(scans.length > 0 && !confirm('Cancelar vai descartar os itens escaneados. Confirma?')) return;
+  stopCamera();
+  showView('view-home');
+};
+
+document.getElementById('btn-finish').onclick = function(){
+  if(scans.length === 0){ showToast('Escaneie ao menos 1 barril antes de finalizar', true); return; }
+  stopCamera();
+  buildSummary();
+  showView('view-summary');
+};
+
+function buildSummary(){
+  const groups = groupedByStyle();
+  const now = new Date();
+  const dateStr = sessionStart.toLocaleDateString('pt-BR');
+  const startStr = sessionStart.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  const endStr = now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  const totalBarris = scans.length;
+  const totalLitros = scans.reduce(function(s,x){ return s+x.vol; }, 0);
+  let text = '📦 TRANSFERÊNCIA FÁBRICA → ESTOQUE\n';
+  text += 'Funcionário: ' + employeeName + '\n';
+  text += 'Data: ' + dateStr + ' | ' + startStr + ' às ' + endStr + '\n\n';
+  groups.forEach(function(g){
+    const lote = lotesByStyle[g.code];
+    text += styleName(g.code).toUpperCase() + (lote ? ' (lote ' + lote + ')' : '') + '\n';
+    Object.keys(g.volumes).sort(function(a,b){ return a - b; }).forEach(function(v){
+      text += '  • ' + v + 'L: ' + g.volumes[v] + ' un. (' + (g.volumes[v]*v) + 'L)\n';
+    });
+  });
+  text += '\nTOTAL: ' + totalBarris + ' barris | ' + totalLitros + ' litros';
+  document.getElementById('summary-text').textContent = text;
+}
+
+document.getElementById('btn-copy').onclick = function(){
+  const text = document.getElementById('summary-text').textContent;
+  navigator.clipboard.writeText(text).then(function(){
+    showSummaryToast('Copiado!');
+  }).catch(function(){
+    showSummaryToast('Não foi possível copiar automaticamente — selecione o texto manualmente.');
+  });
+};
+
+function showSummaryToast(msg){
+  const btn = document.getElementById('btn-copy');
+  const original = btn.textContent;
+  btn.textContent = msg;
+  setTimeout(function(){ btn.textContent = original; }, 1500);
+}
+
+document.getElementById('btn-whatsapp').onclick = function(){
+  const text = document.getElementById('summary-text').textContent;
+  window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+};
+document.getElementById('btn-new').onclick = function(){ showView('view-home'); };
+
+// LABELS
+function buildLabelsConfig(){
+  const container = document.getElementById('labels-config');
+  let html = '';
+  STYLES.forEach(function(s){
+    VOLUMES.forEach(function(v){
+      html += '<label class="label-check-item">' +
+        '<input type="checkbox" class="label-check" data-code="' + s.code + '" data-vol="' + v + '">' +
+        '<span>' + s.name + '<br>' + v + 'L</span>' +
+        '</label>';
+    });
+  });
+  container.innerHTML = html;
+  document.getElementById('labels-sheet').innerHTML = '';
+  document.getElementById('labels-generate').textContent = 'Gerar Etiquetas Selecionadas';
+  document.getElementById('labels-generate').disabled = false;
+}
+
+function buildLabelMarkup(code, vol, dateCode){
+  return '<div class="label-canvas">' +
+    '<div class="lc-header">' +
+      '<div class="lc-title">Chopp ' + styleName(code) + ' ' + vol + 'L</div>' +
+      '<div class="lc-qr-wrap">' +
+        '<div class="lc-qr" id="label-qr-target"></div>' +
+        '<div class="lc-datecode">' + dateCode + '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="lc-ingred"><strong>Ingredientes:</strong><br>Água, Malte, Lúpulo e levedura</div>' +
+    '<div class="lc-brand">Cervejaria Alfa</div>' +
+    '<div class="lc-validade">Validade 45 dias REFRIGERADO</div>' +
+    '<div class="lc-gluten">.Contém Glúten - Manter refrigerado.</div>' +
+    '<div class="lc-produced">Produzido e Envasado por Alfa Indústria de Bebidas EIRELI.</div>' +
+    '<div class="lc-addr">Rua Barras, 141, GALPÃO B, Jaboatão dos Guararapes - PE,</div>' +
+    '<div class="lc-cnpj">Indústria Brasileira CNPJ 35.997.086/0001-53.</div>' +
+    '<div class="lc-mapa">Registro MAPA N° PE-000395-6.0000021.</div>' +
+    '<div class="lc-quimico">Químico Responsável: Rafael Ferrari.</div>' +
+  '</div>';
+}
+
+async function generateLabels(){
+  const selected = Array.from(document.querySelectorAll('.label-check:checked'));
+  if(selected.length === 0){
+    alert('Marque ao menos uma etiqueta para gerar.');
+    return;
+  }
+  const btn = document.getElementById('labels-generate');
+  const sheet = document.getElementById('labels-sheet');
+  const offscreen = document.getElementById('label-offscreen');
+  sheet.innerHTML = '';
+  btn.disabled = true;
+  const today = new Date();
+  const dateCode = String(today.getFullYear()).slice(-2) +
+    String(today.getMonth()+1).padStart(2,'0') +
+    String(today.getDate()).padStart(2,'0');
+  for(let i=0;i<selected.length;i++){
+    const code = selected[i].dataset.code, vol = selected[i].dataset.vol;
+    btn.textContent = 'Gerando ' + (i+1) + '/' + selected.length + '...';
+    offscreen.innerHTML = buildLabelMarkup(code, vol, dateCode);
+    new QRCode(document.getElementById('label-qr-target'), {
+      text: qrText(code, vol), width:120, height:120, correctLevel: QRCode.CorrectLevel.M
+    });
+    await new Promise(function(r){ setTimeout(r, 60); });
+    try{
+      const canvas = await html2canvas(offscreen.firstElementChild, { scale: 2.1146, backgroundColor:'#ffffff' });
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+      const filename = (code + '-' + vol + 'L').toLowerCase() + '.jpg';
+      const card = document.createElement('div');
+      card.className = 'generated-label-card';
+      card.innerHTML =
+        '<img src="' + dataUrl + '" alt="' + styleName(code) + ' ' + vol + 'L" class="generated-label-img">' +
+        '<div class="generated-label-caption">' + styleName(code) + ' ' + vol + 'L</div>' +
+        '<a class="big-btn secondary download-btn" download="' + filename + '" href="' + dataUrl + '">Baixar JPEG</a>' +
+        '<p class="copy-hint">Ou toque e segure na imagem acima para copiar e colar direto no BYLabel</p>';
+      sheet.appendChild(card);
+    }catch(e){
+      showToast('Erro ao gerar uma das etiquetas — tente novamente', true);
+    }
+  }
+  btn.disabled = false;
+  btn.textContent = 'Gerar Etiquetas Selecionadas';
+}
+
+document.getElementById('labels-generate').onclick = generateLabels;
+
+buildManualGrid();
+</script>
+</body>
+</html>

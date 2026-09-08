@@ -119,6 +119,17 @@
   }
   .style-group .tally-row{border-bottom:none;padding:4px 0 4px 6px;}
 
+  .printer-config{
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+    padding:12px;margin-bottom:14px;
+  }
+  .printer-config label{font-size:0.8rem;color:var(--muted);display:block;margin-bottom:6px;}
+  .printer-config input{
+    width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);
+    background:var(--surface-2);color:var(--text);font-size:0.9rem;margin-bottom:6px;box-sizing:border-box;
+  }
+  .printer-status{font-size:0.78rem;color:var(--muted);margin-top:4px;line-height:1.4;}
+  .print-btn{margin-top:8px;}
   .hint-text{color:var(--muted);font-size:0.85rem;margin-top:-10px;line-height:1.4;}
 
   .labels-checklist{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;}
@@ -145,18 +156,21 @@
   /* Etiqueta completa 100mm x 70mm, renderizada fora da tela e capturada via html2canvas */
   #label-offscreen{position:absolute;left:-9999px;top:0;}
   .label-canvas{
-    width:377.95px;height:264.57px;background:#fff;color:#000;
+    width:377.95px;height:264.57px;background:#fff;color:#000;position:relative;
     font-family:Arial,'Arial Narrow',sans-serif;padding:17px 20px;box-sizing:border-box;overflow:hidden;
   }
-  .lc-header{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
-  .lc-title{font-size:15px;font-weight:800;line-height:1.08;flex:1;}
-  .lc-qr-wrap{display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;margin:1px 3px 0 0;}
-  .lc-qr{width:55px;height:55px;}
+  .lc-header{padding-right:100px;}
+  .lc-title{font-size:15px;font-weight:800;line-height:1.15;}
+  .lc-qr-wrap{
+    position:absolute;top:17px;right:20px;
+    display:flex;flex-direction:column;align-items:center;gap:3px;
+  }
+  .lc-qr{width:110px;height:110px;}
   .lc-qr canvas,.lc-qr img{width:100%!important;height:100%!important;}
-  .lc-datecode{font-size:8px;font-weight:700;color:#000;letter-spacing:0.5px;}
+  .lc-datecode{font-size:9px;font-weight:700;color:#000;letter-spacing:0.5px;}
   .lc-ingred{font-size:10px;line-height:1.25;margin-top:4px;}
   .lc-brand{font-size:18px;font-weight:800;margin:4px 0 3px;}
-  .lc-validade{font-size:10px;font-weight:700;text-align:right;margin-bottom:4px;}
+  .lc-validade{font-size:10px;font-weight:700;text-align:right;margin:58px 0 4px;}
   .lc-gluten{background:#000;color:#fff;font-size:9.5px;font-weight:700;text-align:center;padding:2px 0;margin-bottom:4px;}
   .lc-produced{font-size:9px;font-weight:700;text-decoration:underline;text-align:center;margin-bottom:3px;}
   .lc-addr,.lc-cnpj,.lc-mapa,.lc-quimico{font-size:8.5px;text-align:center;line-height:1.3;}
@@ -219,7 +233,13 @@
 
   <section id="view-labels" class="view">
     <h2>Gerar Etiquetas para Impressão</h2>
-    <p class="hint-text">Marque os estilos/volumes que você precisa agora. Cada etiqueta sai pronta em JPEG, no tamanho 100mm x 70mm, com QR code + dados da Alfa — é só baixar (ou copiar a imagem) e colar no BYLabel.</p>
+    <div class="printer-config">
+      <label for="printer-url-input">Endereço do servidor de impressão (do PC com a impressora)</label>
+      <input type="text" id="printer-url-input" placeholder="ex: https://192.168.1.50:8443">
+      <button class="link-btn" id="printer-test-btn" style="padding:2px 0;text-align:left;">Testar conexão</button>
+      <div class="printer-status" id="printer-status"></div>
+    </div>
+    <p class="hint-text">Marque os estilos/volumes que você precisa agora. Cada etiqueta sai pronta em JPEG, no tamanho 100mm x 70mm, com QR code + dados da Alfa — baixe, imprima direto (se o servidor estiver configurado) ou copie a imagem e cole no BYLabel.</p>
     <div id="labels-config" class="labels-checklist"></div>
     <p class="hint-text">*A lista de ingredientes vem padrão como "Água, Malte, Lúpulo e levedura" — confira antes de imprimir estilos com fruta, vinho ou outro insumo adicional.</p>
     <button class="big-btn" id="labels-generate">Gerar Etiquetas Selecionadas</button>
@@ -418,7 +438,7 @@ function buildManualGrid(){
 
 // wiring
 document.getElementById('go-scan').onclick = function(){ showView('view-employee'); };
-document.getElementById('go-labels').onclick = function(){ buildLabelsConfig(); showView('view-labels'); };
+document.getElementById('go-labels').onclick = function(){ buildLabelsConfig(); loadPrinterUrl(); showView('view-labels'); };
 document.getElementById('emp-back').onclick = function(){ showView('view-home'); };
 document.getElementById('labels-back').onclick = function(){ showView('view-home'); };
 
@@ -498,6 +518,54 @@ document.getElementById('btn-whatsapp').onclick = function(){
 };
 document.getElementById('btn-new').onclick = function(){ showView('view-home'); };
 
+// CONFIGURAÇÃO DO SERVIDOR DE IMPRESSÃO
+function getPrinterUrl(){
+  return document.getElementById('printer-url-input').value.trim().replace(/\/$/, '');
+}
+function loadPrinterUrl(){
+  let saved = '';
+  try{ saved = localStorage.getItem('alfa_printer_url') || ''; }catch(e){}
+  document.getElementById('printer-url-input').value = saved;
+}
+function savePrinterUrl(){
+  try{ localStorage.setItem('alfa_printer_url', getPrinterUrl()); }catch(e){}
+}
+document.getElementById('printer-url-input').addEventListener('change', savePrinterUrl);
+
+document.getElementById('printer-test-btn').onclick = async function(){
+  const url = getPrinterUrl();
+  const statusEl = document.getElementById('printer-status');
+  if(!url){ statusEl.textContent = 'Informe o endereço do servidor primeiro.'; return; }
+  savePrinterUrl();
+  statusEl.textContent = 'Testando...';
+  try{
+    const res = await fetch(url + '/ping', { method:'GET' });
+    statusEl.textContent = res.ok ? '✓ Conectado!' : 'Servidor respondeu com erro (' + res.status + ').';
+  }catch(e){
+    statusEl.textContent = 'Não consegui conectar. Confira o endereço, se o servidor está rodando nesse PC, e se você já abriu esse endereço uma vez direto no navegador pra aceitar o certificado.';
+  }
+};
+
+async function sendToPrinter(dataUrl, btn){
+  const url = getPrinterUrl();
+  if(!url){ alert('Configure o endereço do servidor de impressão antes de imprimir.'); return; }
+  const original = btn.textContent;
+  btn.textContent = 'Enviando...';
+  btn.disabled = true;
+  try{
+    const base64 = dataUrl.split(',')[1];
+    const res = await fetch(url + '/print', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ image_base64: base64, width_mm:100, height_mm:70 })
+    });
+    btn.textContent = res.ok ? '✓ Enviado!' : 'Erro no servidor';
+  }catch(e){
+    btn.textContent = 'Falha na conexão';
+  }
+  setTimeout(function(){ btn.textContent = original; btn.disabled = false; }, 2500);
+}
+
 // LABELS
 function buildLabelsConfig(){
   const container = document.getElementById('labels-config');
@@ -517,6 +585,7 @@ function buildLabelsConfig(){
 }
 
 function buildLabelMarkup(code, vol, dateCode){
+  const ingredValue = (code === 'NECTAR-ROXO') ? '' : 'Água, Malte, Lúpulo e levedura';
   return '<div class="label-canvas">' +
     '<div class="lc-header">' +
       '<div class="lc-title">Chopp ' + styleName(code) + ' ' + vol + 'L</div>' +
@@ -525,7 +594,7 @@ function buildLabelMarkup(code, vol, dateCode){
         '<div class="lc-datecode">' + dateCode + '</div>' +
       '</div>' +
     '</div>' +
-    '<div class="lc-ingred"><strong>Ingredientes:</strong><br>Água, Malte, Lúpulo e levedura</div>' +
+    '<div class="lc-ingred"><strong>Ingredientes:</strong><br>' + ingredValue + '</div>' +
     '<div class="lc-brand">Cervejaria Alfa</div>' +
     '<div class="lc-validade">Validade 45 dias REFRIGERADO</div>' +
     '<div class="lc-gluten">.Contém Glúten - Manter refrigerado.</div>' +
@@ -557,20 +626,46 @@ async function generateLabels(){
     btn.textContent = 'Gerando ' + (i+1) + '/' + selected.length + '...';
     offscreen.innerHTML = buildLabelMarkup(code, vol, dateCode);
     new QRCode(document.getElementById('label-qr-target'), {
-      text: qrText(code, vol), width:120, height:120, correctLevel: QRCode.CorrectLevel.M
+      text: qrText(code, vol), width:240, height:240, correctLevel: QRCode.CorrectLevel.M
     });
     await new Promise(function(r){ setTimeout(r, 60); });
     try{
       const canvas = await html2canvas(offscreen.firstElementChild, { scale: 2.1146, backgroundColor:'#ffffff' });
       const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
       const filename = (code + '-' + vol + 'L').toLowerCase() + '.jpg';
+
       const card = document.createElement('div');
       card.className = 'generated-label-card';
-      card.innerHTML =
-        '<img src="' + dataUrl + '" alt="' + styleName(code) + ' ' + vol + 'L" class="generated-label-img">' +
-        '<div class="generated-label-caption">' + styleName(code) + ' ' + vol + 'L</div>' +
-        '<a class="big-btn secondary download-btn" download="' + filename + '" href="' + dataUrl + '">Baixar JPEG</a>' +
-        '<p class="copy-hint">Ou toque e segure na imagem acima para copiar e colar direto no BYLabel</p>';
+
+      const img = document.createElement('img');
+      img.src = dataUrl;
+      img.alt = styleName(code) + ' ' + vol + 'L';
+      img.className = 'generated-label-img';
+      card.appendChild(img);
+
+      const caption = document.createElement('div');
+      caption.className = 'generated-label-caption';
+      caption.textContent = styleName(code) + ' ' + vol + 'L';
+      card.appendChild(caption);
+
+      const downloadBtn = document.createElement('a');
+      downloadBtn.className = 'big-btn secondary download-btn';
+      downloadBtn.download = filename;
+      downloadBtn.href = dataUrl;
+      downloadBtn.textContent = 'Baixar JPEG';
+      card.appendChild(downloadBtn);
+
+      const printBtn = document.createElement('button');
+      printBtn.className = 'big-btn print-btn';
+      printBtn.textContent = '🖨️ Imprimir';
+      printBtn.onclick = function(){ sendToPrinter(dataUrl, printBtn); };
+      card.appendChild(printBtn);
+
+      const hint = document.createElement('p');
+      hint.className = 'copy-hint';
+      hint.textContent = 'Ou toque e segure na imagem acima para copiar e colar direto no BYLabel';
+      card.appendChild(hint);
+
       sheet.appendChild(card);
     }catch(e){
       showToast('Erro ao gerar uma das etiquetas — tente novamente', true);
